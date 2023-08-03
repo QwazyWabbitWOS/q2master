@@ -130,17 +130,18 @@ WSADATA ws;
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/time.h>
+#include <time.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/signal.h>
 #include <assert.h>
+#include <arpa/inet.h>
 
 enum { FALSE, TRUE };
 
 typedef unsigned char BYTE;
-typedef BYTE far      *LPBYTE;
+//typedef BYTE far      *LPBYTE;
 
 // stuff not defined in sys/socket.h
 #define SOCKET unsigned int
@@ -217,11 +218,17 @@ void QueueShutdown(struct sockaddr_in *from, server_t *myserver);
 void RunFrame(void);
 int  ReceivePackets(void);
 void SendServerListToClient(struct sockaddr_in *from);
+#ifdef _WIN32
 void SetRegKey(HKEY hive, LPCSTR subkey, LPCSTR name, LPBYTE value);
 void GetRegKey(HKEY hive, LPSTR subkey, LPCSTR name, LPBYTE value);
+#else
+void SetRegKey(void);
+void GetRegKey(void);
+#endif
 int	Q_stricmp(const char *s1, const char *s2);
 int Q_strnicmp(const char *s1, const char *s2, size_t n);
 void MasterSleep(int msec);
+int Q_tolower(int c);
 
 //
 // Portable wrapper for WSAGetLastError
@@ -246,27 +253,12 @@ int SocketGetLastError(void)
 #define Q_isspace(c)    (c == ' ' || c == '\f' || c == '\n' || \
                          c == '\r' || c == '\t' || c == '\v')
 
-int inline Q_tolower(int c)
+int Q_tolower(int c)
 {
 	if (Q_isupper(c)) {
 		c += ('a' - 'A');
 	}
 	return c;
-}
-
-// Case independent string compare.
-// If s1 is contained within s2 then return 0, they are "equal"
-// else return the difference between them.
-int	Q_stricmp(const char *s1, const char *s2)
-{
-	const unsigned char
-		*uc1 = (const unsigned char *)s1,
-		*uc2 = (const unsigned char *)s2;
-
-	while (Q_tolower(*uc1) == Q_tolower(*uc2++))
-		if (*uc1++ == '\0')
-			return (0);
-	return (Q_tolower(*uc1) - Q_tolower(*--uc2));
 }
 
 // case independent string compare of length n
@@ -293,7 +285,7 @@ int Q_strnicmp(const char *s1, const char *s2, size_t n)
 //
 // Debug print output
 //
-void dprintf(char *msg, ...)
+void Q_dprintf(char *msg, ...)
 {
 	va_list		argptr;
 	char		text[128];
@@ -340,16 +332,17 @@ int main(int argc, char *argv[])
 	memset(&listenaddress, 0, sizeof(listenaddress));
 
 	// only in Windows
+#ifdef _WIN32
 	GetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_IP, (LPBYTE)bind_ip);
 	GetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_PORT, (LPBYTE)bind_port);
-
+#endif
 	listenaddress.sin_addr.s_addr = inet_addr(bind_ip);
 	listenaddress.sin_family = AF_INET;
 	listenaddress.sin_port = htons((unsigned short)atoi(bind_port));
 
 	if ((bind(listener, (struct sockaddr *)&listenaddress, sizeof(listenaddress))) == SOCKET_ERROR)
 	{
-		dprintf("[E] Couldn't bind to port %s UDP\n", bind_port);
+		Q_dprintf("[E] Couldn't bind to port %s UDP\n", bind_port);
 		return EXIT_FAILURE;
 	}
 
@@ -357,7 +350,7 @@ int main(int argc, char *argv[])
 	delay.tv_usec = 0;
 	FD_SET(listener, &set);
 	memset(&servers, 0, sizeof(servers));
-	dprintf("listening on %s:%s (UDP)\n", bind_ip, bind_port);
+	Q_dprintf("listening on %s:%s (UDP)\n", bind_ip, bind_port);
 	runmode = SRV_RUN;
 	ForkDaemon();
 
@@ -421,7 +414,7 @@ int ReceivePackets(void)
 	delay.tv_sec = 1;
 	delay.tv_usec = 0;
 
-	ns = select(listener + 1, &set, NULL, NULL, &delay);
+	ns = select((int)(listener + 1), &set, NULL, NULL, &delay);
 	if (ns == 1)
 	{
 		len = recvfrom(listener, incoming, sizeof(incoming), 0, (struct sockaddr *)&from, &fromlen);
@@ -435,7 +428,7 @@ int ReceivePackets(void)
 				}
 			}
 			else
-				dprintf("[W] runt packet from %s:%d\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+				Q_dprintf("[W] runt packet from %s:%d\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
 
 			//reset for next packet
 			memset(incoming, 0, sizeof(incoming));
@@ -443,7 +436,7 @@ int ReceivePackets(void)
 		else
 		{
 			err = SocketGetLastError();
-			dprintf("[E] socket error during select from %s:%d (%d)\n",
+			Q_dprintf("[E] socket error during select from %s:%d (%d)\n",
 				inet_ntoa(from.sin_addr), ntohs(from.sin_port), err);
 		}
 	}
@@ -502,7 +495,7 @@ int AddServer(struct sockaddr_in *from, int normal)
 			//already exists - could be a pending shutdown (ie killserver, change of map, etc)
 			if (server->shutdown_issued)
 			{
-				dprintf("[I] scheduled shutdown server %s sent another ping!\n",
+				Q_dprintf("[I] scheduled shutdown server %s sent another ping!\n",
 					inet_ntoa(from->sin_addr));
 				DropServer(server);
 				server = &servers;
@@ -512,7 +505,7 @@ int AddServer(struct sockaddr_in *from, int normal)
 			}
 			else
 			{
-				dprintf("[W] dupe ping from %s:%u!! ignored.\n",
+				Q_dprintf("[W] dupe ping from %s:%u!! ignored.\n",
 					inet_ntoa(server->ip.sin_addr),
 					htons(server->port));
 				return TRUE;
@@ -541,7 +534,7 @@ int AddServer(struct sockaddr_in *from, int normal)
 	server->validated = 0;
 	numservers++;
 
-	dprintf("[I] server %s:%u added to queue! (%d) number: %u\n",
+	Q_dprintf("[I] server %s:%u added to queue! (%d) number: %u\n",
 		inet_ntoa(from->sin_addr),
 		htons(server->port),
 		normal,
@@ -589,14 +582,14 @@ void QueueShutdown(struct sockaddr_in *from, server_t *myserver)
 		memset(&addr.sin_zero, 0, sizeof(addr.sin_zero));
 		//hack, server will be dropped in next minute IF it doesn't respond to our ping
 		myserver->shutdown_issued = 1;
-		dprintf("[I] shutdown queued %s:%u \n", inet_ntoa(myserver->ip.sin_addr), htons(server->port));
+		Q_dprintf("[I] shutdown queued %s:%u \n", inet_ntoa(myserver->ip.sin_addr), htons(server->port));
 
 		sendto(listener, OOB_SEQ"ping", 8, 0, (struct sockaddr *)&addr, sizeof(addr));
 		return;
 	}
 
 	else
-		dprintf("[W] shutdown issued from unregistered server %s!\n", inet_ntoa(from->sin_addr));
+		Q_dprintf("[W] shutdown issued from unregistered server %s!\n", inet_ntoa(from->sin_addr));
 }
 
 //
@@ -620,7 +613,7 @@ void RunFrame(void)
 
 			if (old->shutdown_issued || old->queued_pings > 6)
 			{
-				dprintf("[I] %s:%u shut down.\n", inet_ntoa(old->ip.sin_addr), htons(server->port));
+				Q_dprintf("[I] %s:%u shut down.\n", inet_ntoa(old->ip.sin_addr), htons(server->port));
 				DropServer(old);
 				continue;
 			}
@@ -636,7 +629,7 @@ void RunFrame(void)
 				memset(&addr.sin_zero, 0, sizeof(addr.sin_zero));
 				server->queued_pings++;
 				server->last_ping = curtime;
-				dprintf("[I] ping %s:%u\n", inet_ntoa(server->ip.sin_addr), htons(server->port));
+				Q_dprintf("[I] ping %s:%u\n", inet_ntoa(server->ip.sin_addr), htons(server->port));
 				sendto(listener, OOB_SEQ"ping", 8, 0, (struct sockaddr *)&addr, sizeof(addr));
 			}
 		}
@@ -689,16 +682,16 @@ void SendServerListToClient(struct sockaddr_in *from)
 		}
 	}
 
-	dprintf("[I] query response (%d bytes) sent to %s:%d\n", buflen, inet_ntoa(from->sin_addr), ntohs(from->sin_port));
+	Q_dprintf("[I] query response (%d bytes) sent to %s:%d\n", buflen, inet_ntoa(from->sin_addr), ntohs(from->sin_port));
 
 	err = sendto(listener, buff, buflen, 0, (struct sockaddr *)from, sizeof(*from));
 	if (err == SOCKET_ERROR)
 	{
 		err = SocketGetLastError();
-		dprintf("[E] socket error on send! code %d.\n", err);
+		Q_dprintf("[E] socket error on send! code %d.\n", err);
 	}
 
-	dprintf("[I] sent server list to client %s, servers: %u of %u\n",
+	Q_dprintf("[I] sent server list to client %s, servers: %u of %u\n",
 		inet_ntoa(from->sin_addr),
 		servercount, /* sent */
 		numservers); /* on record */
@@ -722,7 +715,7 @@ void Ack(struct sockaddr_in *from)
 		//a match!
 		if (*(int *)&from->sin_addr == *(int *)&server->ip.sin_addr && from->sin_port == server->port)
 		{
-			dprintf("[I] ack from %s:%u (%d).\n",
+			Q_dprintf("[I] ack from %s:%u (%d).\n",
 				inet_ntoa(server->ip.sin_addr),
 				htons(server->port),
 				server->queued_pings);
@@ -764,7 +757,7 @@ int HeartBeat(struct sockaddr_in *from, char *data)
 
 			server->validated = 1;
 			server->last_heartbeat = time(NULL);
-			dprintf("[I] heartbeat from %s:%u.\n",
+			Q_dprintf("[I] heartbeat from %s:%u.\n",
 				inet_ntoa(server->ip.sin_addr),
 				htons(server->port));
 
@@ -789,7 +782,7 @@ int ParseResponse(struct sockaddr_in *from, char *data, int dglen)
 
 	if (Q_strnicmp(data, "query", 5) == 0 || Q_strnicmp(data, OOB_SEQ"getservers", 14) == 0)
 	{
-		dprintf("[I] %s:%d : query (%d bytes)\n", inet_ntoa(from->sin_addr), htons(from->sin_port), dglen);
+		Q_dprintf("[I] %s:%d : query (%d bytes)\n", inet_ntoa(from->sin_addr), htons(from->sin_port), dglen);
 		SendServerListToClient(from);
 	}
 	else
@@ -800,7 +793,7 @@ int ParseResponse(struct sockaddr_in *from, char *data, int dglen)
 		*(line++) = '\0';
 		cmd += 4;
 
-		dprintf("[I] %s: %s (%d bytes)\n", cmd, inet_ntoa(from->sin_addr), dglen);
+		Q_dprintf("[I] %s: %s (%d bytes)\n", cmd, inet_ntoa(from->sin_addr), dglen);
 
 		if (Q_strnicmp(cmd, "ping", 4) == 0)
 		{
@@ -820,7 +813,7 @@ int ParseResponse(struct sockaddr_in *from, char *data, int dglen)
 		}
 		else
 		{
-			dprintf("[W] Unknown command from %s!\n", inet_ntoa(from->sin_addr));
+			Q_dprintf("[W] Unknown command from %s!\n", inet_ntoa(from->sin_addr));
 		}
 	}
 	return status;
@@ -846,14 +839,18 @@ void ParseCommandLine(int argc, char *argv[])
 		{
 			//bind_ip, a specific host ip if desired
 			strncpy(bind_ip, (char*)argv[i] + 4, sizeof(bind_ip) - 1);
+			#ifdef _WIN32
 			SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_IP, (LPBYTE)bind_ip);
+			#endif
 		}
 
 		if (Q_strnicmp((char*)argv[i] + 1, "port", 4) == 0)
 		{
 			//bind_port, if other than default port
 			strncpy(bind_port, (char*)argv[i] + 6, sizeof(bind_port) - 1);
+			#ifdef _WIN32
 			SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_PORT, (LPBYTE)bind_port);
+			#endif	
 		}
 	}
 }
@@ -991,7 +988,7 @@ void SetRegKey(HKEY hive, LPCSTR subkey, LPCSTR name, LPBYTE value)
 	}
 	else
 	{
-		DWORD cbData = _tcslen((LPCSTR)value) + sizeof(TCHAR); // account for nul char
+		DWORD cbData = (DWORD)(_tcslen((LPCSTR)value) + sizeof(TCHAR)); // account for nul char
 		status = RegSetValueEx(hKey, name, 0, REG_SZ, value, cbData);
 		if (status != ERROR_SUCCESS)
 		{
@@ -1041,8 +1038,8 @@ void GetRegKey(HKEY hive, LPSTR subkey, LPCSTR name, LPBYTE value)
 
 #else	// not doing windows
 
-void SetRegKey(HKEY hive, LPCSTR subkey, LPCSTR name, LPBYTE value) {} // stubs in Linux
-void GetRegKey(HKEY hive, LPSTR subkey, LPCSTR name, LPBYTE value) {}
+void SetRegKey(void) {} // stubs in Linux
+void GetRegKey(void) {}
 
 //
 // handle Linux and BSD signals

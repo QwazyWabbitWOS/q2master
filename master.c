@@ -246,7 +246,7 @@ int SocketGetLastError(void)
 #define Q_isspace(c)    (c == ' ' || c == '\f' || c == '\n' || \
                          c == '\r' || c == '\t' || c == '\v')
 
-int Q_tolower(int c)
+int inline Q_tolower(int c)
 {
 	if (Q_isupper(c)) {
 		c += ('a' - 'A');
@@ -254,9 +254,9 @@ int Q_tolower(int c)
 	return c;
 }
 
-// case independent string compare
-// if s1 is contained within s2 then return 0, they are "equal".
-// else return the lexicographical difference between them.
+// Case independent string compare.
+// If s1 is contained within s2 then return 0, they are "equal"
+// else return the difference between them.
 int	Q_stricmp(const char *s1, const char *s2)
 {
 	const unsigned char
@@ -582,7 +582,7 @@ void QueueShutdown(struct sockaddr_in *from, server_t *myserver)
 
 	if (myserver)
 	{
-		struct sockaddr_in addr;
+		struct sockaddr_in addr = { 0 };
 		memcpy(&addr.sin_addr, &myserver->ip.sin_addr, sizeof(addr.sin_addr));
 		addr.sin_family = AF_INET;
 		addr.sin_port = server->port;
@@ -629,7 +629,7 @@ void RunFrame(void)
 
 			if (curtime - server->last_ping >= 10)
 			{
-				struct sockaddr_in addr;
+				struct sockaddr_in addr = { 0 };
 				memcpy(&addr.sin_addr, &server->ip.sin_addr, sizeof(addr.sin_addr));
 				addr.sin_family = AF_INET;
 				addr.sin_port = server->port;
@@ -755,7 +755,7 @@ int HeartBeat(struct sockaddr_in *from, char *data)
 		//a match!
 		if (*(int *)&from->sin_addr == *(int *)&server->ip.sin_addr && from->sin_port == server->port)
 		{
-			struct sockaddr_in addr;
+			struct sockaddr_in addr = { 0 };
 
 			memcpy(&addr.sin_addr, &server->ip.sin_addr, sizeof(addr.sin_addr));
 			addr.sin_family = AF_INET;

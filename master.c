@@ -225,7 +225,6 @@ void GetRegKey(HKEY hive, LPSTR subkey, LPCSTR name, LPBYTE value);
 void SetRegKey(void);
 void GetRegKey(void);
 #endif
-int	Q_stricmp(const char *s1, const char *s2);
 int Q_strnicmp(const char *s1, const char *s2, size_t n);
 void MasterSleep(int msec);
 int Q_tolower(int c);

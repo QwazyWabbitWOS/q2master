@@ -24,7 +24,9 @@
 // 
 //  AUTHOR: Craig Link - Microsoft Developer Support 
 // 
-
+// 
+// Guard against including this file on Linux builds.
+#if defined _WIN32 && !defined LINUX
 
 #include <windows.h> 
 #include <stdio.h> 
@@ -664,3 +666,4 @@ LPTSTR GetLastErrorText(LPTSTR lpszBuf, DWORD dwSize)
 	return lpszBuf;
 }
 
+#endif

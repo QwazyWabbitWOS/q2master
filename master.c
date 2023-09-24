@@ -818,6 +818,7 @@ int ParseResponse(struct sockaddr_in *from, char *data, int dglen)
 	return status;
 }
 
+// If not Windows, this is where the options are processed.
 void ParseCommandLine(int argc, char *argv[])
 {
 	int i = 0;

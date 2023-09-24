@@ -1,27 +1,16 @@
-CFLAGS =-DNDEBUG -DLINUX
-LDFLAGS =-S -lc -lz -ldl
+# This makefile is included for convenience and you can disregard it if you like.
+# Otherwise, 'make clean' and 'make q2master' or 'make' will build it.
+# Only 1 file, master.c is needed on Linux.
+# Single file build command is 'gcc -o q2master master.c'.
 
-ORIGDIR=Source
+CFLAGS =-DLINUX
 
-OBJS = master.o
-
-q2master: $(OBJS)
-	ld -o $@ $(OBJS) $(LDFLAGS)
-	chmod 0755 $@
+q2master:
+	$(CC) $(CFLAGS) -o $@ master.c
 	ldd $@
 
 clean:
-	/bin/rm -f $(OBJS) q2master
-
-$*.o: $*.c
-	$(CC) $(CFLAGS) -c $*.c
-
-$*.c: $(ORIGDIR)/$*.c
-	tr -d '\015' < $(ORIGDIR)/$*.c > $*.c
-
-$*.h: $(ORIGDIR)/$*.h
-	tr -d '\015' < $(ORIGDIR)/$*.h > $*.h
+	/bin/rm -f q2master
 
 # Dependencies
-
-master.o: master.c
+q2master: master.c

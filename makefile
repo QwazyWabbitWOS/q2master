@@ -7,7 +7,6 @@ CFLAGS =-DLINUX
 
 q2master:
 	$(CC) $(CFLAGS) -o $@ master.c
-	ldd $@
 
 clean:
 	/bin/rm -f q2master

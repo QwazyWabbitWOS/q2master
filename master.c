@@ -308,7 +308,7 @@ int My_Main(int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
-	int err;
+	int err = 0;
 
 	printf("Q2-Master 1.1 originally GloomMaster\n(c) 2002-2003 r1ch.net, modifications by QwazyWabbit 2007-2014\n");
 	numservers = 0;
@@ -669,7 +669,7 @@ void SendServerListToClient(struct sockaddr_in *from)
 	while (server->next)
 	{
 		server = server->next;
-		if (server->heartbeats >= 2 && !server->shutdown_issued && server->validated)
+		if (!server->shutdown_issued && server->validated)
 		{
 			memcpy(buff + buflen, &server->ip.sin_addr, 4);
 			buflen += 4;
@@ -756,7 +756,8 @@ int HeartBeat(struct sockaddr_in *from, char *data)
 
 			server->validated = 1;
 			server->last_heartbeat = time(NULL);
-			Q_dprintf("[I] heartbeat from %s:%u.\n",
+			server->heartbeats++;
+			Q_dprintf("[I] heartbeat (%u) from %s:%u.\n", server->heartbeats,
 				inet_ntoa(server->ip.sin_addr),
 				htons(server->port));
 

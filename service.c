@@ -56,6 +56,20 @@ BOOL WINAPI ControlHandler(DWORD dwCtrlType);
 LPTSTR GetLastErrorText(LPTSTR lpszBuf, DWORD dwSize);
 VOID DoUpdateSvcDesc();
 
+void Usage(void)
+{
+	// this is just to be friendly 
+	printf("%s -install          to install the service\n", SZAPPNAME);
+	printf("%s -remove           to remove the service\n", SZAPPNAME);
+	printf("%s -debug <params>   to run as a console app for debugging\n", SZAPPNAME);
+	printf("%s -ip x.x.x.x       to bind to a unique ip address\n", SZAPPNAME);
+	printf("%s -wanip x.x.x.x    to specify the WAN ip address of this host\n", SZAPPNAME);
+	printf("%s -lanip x.x.x.x    to specify the LAN ip address for colocated servers (used with wanip)\n", SZAPPNAME);
+	printf("%s -port nnnnn       to bind to port address other than 27900\n", SZAPPNAME);
+	printf("\nStartServiceCtrlDispatcher being called.\n");
+	printf("This may take several seconds.  Please wait.\n");
+}
+
 // 
 //  FUNCTION: main 
 // 
@@ -82,29 +96,28 @@ int main(int argc, char **argv)
 		{ NULL, NULL }
 	};
 
-	if ((argc > 1) &&
-		((*argv[1] == '-') || (*argv[1] == '/')))
+	if ((argc > 1) && ((*argv[1] == '-') || (*argv[1] == '/')))
 	{
-		if (_stricmp("install", argv[1] + 1) == 0)
+		if (strcmp("install", argv[1] + 1) == 0)
 		{
 			CmdInstallService();
 		}
-		else if (_stricmp("remove", argv[1] + 1) == 0)
+		else if (strcmp("remove", argv[1] + 1) == 0)
 		{
 			CmdRemoveService();
 		}
-		else if (_stricmp("debug", argv[1] + 1) == 0)
+		else if (strcmp("debug", argv[1] + 1) == 0)
 		{
 			bDebug = TRUE;
 			CmdDebugService(argc, argv);
 		}
-		else if (_stricmp("ip", argv[1] + 1) == 0)
+		else if (strcmp("ip", argv[1] + 1) == 0)
 		{
 			bDebug = TRUE;
 			CmdDebugService(argc, argv);
 			printf("IP address was correctly initialized.\n");
 		}
-		else if (_stricmp("port", argv[1] + 1) == 0)
+		else if (strcmp("port", argv[1] + 1) == 0)
 		{
 			bDebug = TRUE;
 			CmdDebugService(argc, argv);
@@ -121,14 +134,7 @@ int main(int argc, char **argv)
 	// the service control manager may be starting the service 
 	// so we must call StartServiceCtrlDispatcher 
 dispatch:
-	// this is just to be friendly 
-	printf("%s -install          to install the service\n", SZAPPNAME);
-	printf("%s -remove           to remove the service\n", SZAPPNAME);
-	printf("%s -debug <params>   to run as a console app for debugging\n", SZAPPNAME);
-	printf("%s -ip x.x.x.x       to bind to a unique ip address\n", SZAPPNAME);
-	printf("%s -port nnnnn       to bind to port address other than 27900\n", SZAPPNAME);
-	printf("\nStartServiceCtrlDispatcher being called.\n");
-	printf("This may take several seconds.  Please wait.\n");
+	Usage();
 
 	if (!StartServiceCtrlDispatcher(dispatchTable))
 		AddToMessageLog(TEXT("StartServiceCtrlDispatcher failed."));

@@ -62,14 +62,15 @@
 // To debug it as a console program, command: "master -debug" and it outputs
 // status messages to the console. Ctrl-C shuts it down.
 //
-// From a cmd prompt type: q2master -install to install the service with defaults.
-// The service will be installed as "Q2MasterServer" in the Windows service list.
+// From an Administrator Command Prompt type: q2master -install to install the service with defaults.
+// The service will be installed as "Q2 Master Server" in the Windows service list.
 //
 
 // -install	Installs the service on Windows.
 // -remove	Stops and removes the service.
 // When the service is installed it is installed with "Automatic" startup type
 // which allows it to start up when Windows starts. Use SCM to change this.
+// Once installed, use net start q2masterserver to start the service.
 
 // Other commands:
 // net start q2masterserver to start the service.
@@ -124,6 +125,7 @@ WSADATA ws;
 #else
 
 // Linux and Mac versions
+#define _DEFAULT_SOURCE //QW// for daemon()
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -762,6 +764,7 @@ int HeartBeat(struct sockaddr_in *from, char *data)
 				htons(server->port));
 
 			sendto(listener, OOB_SEQ"ack", 7, 0, (struct sockaddr *)&addr, sizeof(addr));
+			Q_dprintf("[I] ack sent to %s:%u.\n", inet_ntoa(server->ip.sin_addr), htons(server->port));
 			return status;
 		}
 	}

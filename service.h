@@ -62,6 +62,8 @@ extern "C" {
 #endif 
  
 	void Usage(void);
+	int GetAllKeys(void);
+	int SetAllKeys(void);
 
 ////////////////////////////////////////////////////////////////////////////// 
 //// todo: change to desired strings 

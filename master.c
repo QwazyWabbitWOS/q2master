@@ -108,7 +108,6 @@
 #include <stdlib.h>
 #include <tchar.h> 
 #include <time.h>
-#include <assert.h>
 #include <crtdbg.h>
 #include "service.h"
 
@@ -130,6 +129,7 @@ WSADATA ws;
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <time.h>
@@ -137,7 +137,6 @@ WSADATA ws;
 #include <errno.h>
 #include <unistd.h>
 #include <sys/signal.h>
-#include <assert.h>
 #include <arpa/inet.h>
 
 enum { FALSE, TRUE };
@@ -195,6 +194,8 @@ char incoming[150000];
 #define KEY_LEN 32
 char bind_ip[] = "000.000.000.000"; // default IP to bind
 char bind_port[] = "27900";	// default port to bind
+char wan_ip[] = "000.000.000.000"; // our public facing ip
+char lan_ip[] = "000.000.000.000"; // the ip we want to transform into wan ip
 
 //
 // These are Windows specific but need to be defined here so GCC won't barf
@@ -202,10 +203,12 @@ char bind_port[] = "27900";	// default port to bind
 #define REGKEY_SUBKEY "SOFTWARE\\Q2MasterServer" // Our config data goes here
 #define REGKEY_BIND_IP "Bind_IP"
 #define REGKEY_BIND_PORT "Bind_Port"
+#define REGKEY_WAN_IP "WAN_IP"
+#define REGKEY_LAN_IP "LAN_IP"
 
 // Out of band data preamble
 #define OOB_SEQ "\xff\xff\xff\xff" //32 bit integer (-1) as string sequence signifying out of band data
-#define SERVERSTRING OOB_SEQ"servers " // 12 bytes for the serverstring header (note no space here)
+#define SERVERSTRING OOB_SEQ "servers " // 12 bytes for the serverstring header (note trailing space here)
 
 void Ack(struct sockaddr_in *from);
 int  AddServer(struct sockaddr_in *from, int normal);
@@ -229,7 +232,6 @@ void GetRegKey(void);
 #endif
 int Q_strnicmp(const char *s1, const char *s2, size_t n);
 void MasterSleep(int msec);
-int Q_tolower(int c);
 
 //
 // Portable wrapper for WSAGetLastError
@@ -254,14 +256,6 @@ int SocketGetLastError(void)
 #define Q_isspace(c)    (c == ' ' || c == '\f' || c == '\n' || \
                          c == '\r' || c == '\t' || c == '\v')
 
-int Q_tolower(int c)
-{
-	if (Q_isupper(c)) {
-		c += ('a' - 'A');
-	}
-	return c;
-}
-
 // case independent string compare of length n
 // compare strings up to length n or until the end of s1
 // if s1 is contained within s2 then return 0
@@ -274,8 +268,8 @@ int Q_strnicmp(const char *s1, const char *s2, size_t n)
 
 	if (n != 0) {
 		do {
-			if (Q_tolower(*uc1) != Q_tolower(*uc2++))
-				return (Q_tolower(*uc1) - Q_tolower(*--uc2));
+			if (tolower(*uc1) != tolower(*uc2++))
+				return (tolower(*uc1) - tolower(*--uc2));
 			if (*uc1++ == '\0')
 				break;
 		} while (--n != 0);
@@ -299,6 +293,31 @@ void Q_dprintf(char *msg, ...)
 		printf("%s", text);
 }
 
+int GetAllKeys(void)
+{
+	int status = 0;
+#ifdef _WIN32
+	GetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_IP, (LPBYTE)bind_ip);
+	GetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_PORT, (LPBYTE)bind_port);
+	GetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_WAN_IP, (LPBYTE)wan_ip);
+	GetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_LAN_IP, (LPBYTE)lan_ip);
+#endif
+	return status;
+}
+
+int SetAllKeys(void)
+{
+	int status = 0;
+#ifdef _WIN32
+	SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, "Description", (LPBYTE)"A Quake 2 master server listening on the listed IP and UDP port.");
+	SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_IP, (LPBYTE)bind_ip);
+	SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_PORT, (LPBYTE)bind_port);
+	SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_WAN_IP, (LPBYTE)wan_ip);
+	SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_LAN_IP, (LPBYTE)lan_ip);
+#endif
+	return status;
+}
+
 //
 // This becomes main for Linux
 // In Windows, main is in service.c and it 
@@ -312,7 +331,7 @@ int main(int argc, char *argv[])
 {
 	int err = 0;
 
-	printf("Q2-Master 1.1 originally GloomMaster\n(c) 2002-2003 r1ch.net, modifications by QwazyWabbit 2007-2014\n");
+	printf("Q2-Master 1.2 originally GloomMaster\n(c) 2002-2003 r1ch.net, modifications by QwazyWabbit 2007-2023\n");
 	numservers = 0;
 
 #ifdef _WIN32
@@ -332,11 +351,6 @@ int main(int argc, char *argv[])
 	out = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	memset(&listenaddress, 0, sizeof(listenaddress));
 
-	// only in Windows
-#ifdef _WIN32
-	GetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_IP, (LPBYTE)bind_ip);
-	GetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_PORT, (LPBYTE)bind_port);
-#endif
 	listenaddress.sin_addr.s_addr = inet_addr(bind_ip);
 	listenaddress.sin_family = AF_INET;
 	listenaddress.sin_port = htons((unsigned short)atoi(bind_port));
@@ -423,6 +437,10 @@ int ReceivePackets(void)
 		{
 			if (len > 4)
 			{
+				// If game server IP matches our LAN IP, transform it to WAN IP first.
+				if (from.sin_addr.s_addr == inet_addr(lan_ip)) {
+					from.sin_addr.s_addr = inet_addr(wan_ip);
+				}
 				if (!ParseResponse(&from, incoming, len)) {
 					err = 50;
 					runmode = SRV_STOP;	// something went wrong, AddServer failed?
@@ -655,7 +673,8 @@ void SendServerListToClient(struct sockaddr_in *from)
 	// and eligible servers in list will always be less than or equal to numservers
 
 	err = 0;
-	bufsize = 12 + 6 * (numservers + 1); // 12 bytes for serverstring, 6 bytes for game server ip and port
+	// Currently in IPv4, 12 bytes for serverstring plus 6 bytes for game server ip and port
+	bufsize = (int)(strlen(SERVERSTRING) + sizeof server->ip.sin_addr +  sizeof server->port) * (numservers + 1);
 	buflen = 0;
 	buff = malloc(bufsize);
 	if (buff == NULL) {
@@ -664,8 +683,8 @@ void SendServerListToClient(struct sockaddr_in *from)
 	}
 
 	memset(buff, 0, bufsize);
-	memcpy(buff, SERVERSTRING, strlen(SERVERSTRING));	// 12 is length of serverstring
-	buflen += 12;
+	memcpy(buff, SERVERSTRING, strlen(SERVERSTRING));
+	buflen += (int)strlen(SERVERSTRING);
 	servercount = 0;
 
 	while (server->next)
@@ -822,7 +841,6 @@ int ParseResponse(struct sockaddr_in *from, char *data, int dglen)
 	return status;
 }
 
-// If not Windows, this is where the options are processed.
 void ParseCommandLine(int argc, char *argv[])
 {
 	int i = 0;
@@ -843,20 +861,29 @@ void ParseCommandLine(int argc, char *argv[])
 		{
 			//bind_ip, a specific host ip if desired
 			strncpy(bind_ip, (char*)argv[i] + 4, sizeof(bind_ip) - 1);
-			#ifdef _WIN32
-			SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_IP, (LPBYTE)bind_ip);
-			#endif
 		}
 
 		if (Q_strnicmp((char*)argv[i] + 1, "port", 4) == 0)
 		{
 			//bind_port, if other than default port
 			strncpy(bind_port, (char*)argv[i] + 6, sizeof(bind_port) - 1);
-			#ifdef _WIN32
-			SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, REGKEY_BIND_PORT, (LPBYTE)bind_port);
-			#endif	
+		}
+
+		if (Q_strnicmp((char*)argv[i] + 1, "wanip", 5) == 0)
+		{
+			//convert bind ip to wan ip for heartbeats and addserver
+			strncpy(wan_ip, (char*)argv[i] + 7, sizeof(wan_ip) - 1);
+			Q_dprintf("[D] WAN IP: %s\n", wan_ip);
+		}
+
+		if (Q_strnicmp((char*)argv[i] + 1, "lanip", 5) == 0)
+		{
+			//convert bind ip to wan ip for heartbeats and addserver
+			strncpy(lan_ip, (char*)argv[i] + 7, sizeof(lan_ip) - 1);
+			Q_dprintf("[D] LAN IP: %s\n", lan_ip);
 		}
 	}
+	SetAllKeys();
 }
 
 void MasterSleep(int msec)
@@ -917,8 +944,9 @@ void ServiceCtrlHandler(DWORD Opcode)
 
 void ServiceStart(DWORD argc, LPTSTR *argv)
 {
+	GetAllKeys(); // Assume all keys have been set.
 	ParseCommandLine(argc, argv); // we call it here and in My_Main
-	SetRegKey(HKEY_LOCAL_MACHINE, REGKEY_SUBKEY, "Description", (LPBYTE) "A Quake 2 master server listening on the listed IP and UDP port.");
+	SetAllKeys();
 
 	MyServiceStatus.dwServiceType = SERVICE_WIN32;
 	MyServiceStatus.dwCurrentState = SERVICE_START_PENDING;

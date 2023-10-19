@@ -1,4 +1,4 @@
-			Quake 2 Master v1.1 by QwazyWabbit
+			Quake 2 Master v1.2 by QwazyWabbit
 
 This program is a modification of R1ch's GloomMaster server.
 The GloomMaster only accepted heartbeats from Gloom servers but this version

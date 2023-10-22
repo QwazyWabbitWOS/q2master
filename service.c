@@ -134,8 +134,6 @@ int main(int argc, char **argv)
 	// the service control manager may be starting the service 
 	// so we must call StartServiceCtrlDispatcher 
 dispatch:
-	Usage();
-
 	if (!StartServiceCtrlDispatcher(dispatchTable))
 		AddToMessageLog(TEXT("StartServiceCtrlDispatcher failed."));
 }

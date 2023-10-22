@@ -470,14 +470,16 @@ void ExitNicely(void)
 	server_t	*server = &servers;
 	server_t	*old = NULL;
 
-	printf("[I] shutting down.\n");
+	Q_dprintf("[I] shutting down.\n");
 	while (server->next)
 	{
-		if (old) free(old);
+		if (old)
+			free(old);
 		server = server->next;
 		old = server;
 	}
-	if (old) free(old);
+	if (old)
+		free(old);
 }
 
 void DropServer(server_t *server)
@@ -946,7 +948,6 @@ void ServiceStart(DWORD argc, LPTSTR *argv)
 {
 	GetAllKeys(); // Assume all keys have been set.
 	ParseCommandLine(argc, argv); // we call it here and in My_Main
-	SetAllKeys();
 
 	MyServiceStatus.dwServiceType = SERVICE_WIN32;
 	MyServiceStatus.dwCurrentState = SERVICE_START_PENDING;

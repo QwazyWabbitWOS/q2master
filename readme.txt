@@ -25,15 +25,18 @@ Windows Installation is simple.
    This is usually /windows/system32 for services but you can put it
    in a general tools folder if you prefer.
 
-2. With the cmd prompt in the folder containing the executable, type:
-   "master -ip xxx.xxx.xxx.xxx" to set the IP address to bind.
-   Don't use this command if 0.0.0.0 (all IP's on host) is OK.
+2. Using an Administrator command prompt in the folder containing the 
+   executable, type: "master -ip xxx.xxx.xxx.xxx" to set the IP address 
+   to bind, together with any other necessary settings. This sets up the
+   registry parameters in HKEY_LOCAL_MACHINE\SOFTWARE\Q2MasterServer for
+   use by the Q2 Master service at startup.
 
-3. Type "master -install" to install the service in the registry.
+3. Type "master -install" to install the service.
 
 4. Type "net start q2masterserver" to start the service. The server listens
    on UDP port 27900 by default and this is where most clients expect
-   Q2 master servers to be.
+   Q2 master servers to be. The service looks up the registry keys defined
+   by the commands in step 2 and uses them to configure the master.
 
 Linux installation varies, so I won't attempt to describe it here. Starting
 the process is simple, command line: "master -ip xxx.xxx.xxx.xxx" will cause
@@ -48,6 +51,12 @@ Use whatever method your Linux distro requires to install it as a daemon.
 
 // -ip xxx.xxx.xxx.xxx causes server to bind to a particular IP address when
 //	used with multi-homed hosts. Default is 0.0.0.0 (any).
+
+// -lanip xxx.xxx.xxx.xxx specifies the current host IP address inside a LAN.
+// -wanip xxx.xxx.xxx.xxx specifies the WAN IP address of a server behind a NAT firewall.
+// These two switches are used to allow a master server to be co-located with
+// LAN game servers. They cause the master server to translate the LAN IP to the
+// specified WAN IP when sending the server list to clients.
 
 // -port xxxxx causes server to bind to a particular port. Default is 27900.
 // Default port for Quake 2 master servers is 27900. If you depart from this
@@ -87,4 +96,3 @@ Use whatever method your Linux distro requires to install it as a daemon.
 // Use "ps -ux" to list detached processes, this will show the command line that
 // invoked the q2master process.
 // 
-// A Linux binary "q2master" is included with this source archive.

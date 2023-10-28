@@ -25,11 +25,14 @@ Windows Installation is simple.
    This is usually /windows/system32 for services but you can put it
    in a general tools folder if you prefer.
 
-2. Using an Administrator command prompt in the folder containing the 
+2. Start a command prompt as Administrator in the folder containing the 
    executable, type: "master -ip xxx.xxx.xxx.xxx" to set the IP address 
    to bind, together with any other necessary settings. This sets up the
    registry parameters in HKEY_LOCAL_MACHINE\SOFTWARE\Q2MasterServer for
-   use by the Q2 Master service at startup.
+   use by the Q2 Master service at startup. If you are running the master
+   behind a NAT firewall with co-located game servers then use -wanip and
+   -lanip switches to allow the master to translate the game server local
+   addresses to the WAN side IP address.
 
 3. Type "master -install" to install the service.
 
@@ -37,6 +40,7 @@ Windows Installation is simple.
    on UDP port 27900 by default and this is where most clients expect
    Q2 master servers to be. The service looks up the registry keys defined
    by the commands in step 2 and uses them to configure the master.
+   Once started, the service will autostart when Windows boots. 
 
 Linux installation varies, so I won't attempt to describe it here. Starting
 the process is simple, command line: "master -ip xxx.xxx.xxx.xxx" will cause

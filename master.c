@@ -233,6 +233,17 @@ void GetRegKey(void);
 int Q_strnicmp(const char *s1, const char *s2, size_t n);
 void MasterSleep(int msec);
 
+void Usage(void)
+{
+	printf("\n -install          to install the service (Windows only)\n");
+	printf(" -remove           to remove the service (Windows only)\n");
+	printf(" -debug <params>   to run as a console app for debugging\n");
+	printf(" -ip x.x.x.x       to bind to a unique ip address\n");
+	printf(" -wanip x.x.x.x    to specify the WAN ip address of this host\n");
+	printf(" -lanip x.x.x.x    to specify the LAN ip address for colocated servers (used with wanip)\n");
+	printf(" -port nnnnn       to bind to port address other than 27900\n\n");
+}
+
 //
 // Portable wrapper for WSAGetLastError
 //
@@ -244,17 +255,6 @@ int SocketGetLastError(void)
 	return errno;
 #endif
 }
-
-// fast "C" macros
-#define Q_isupper(c)    ((c) >= 'A' && (c) <= 'Z')
-#define Q_islower(c)    ((c) >= 'a' && (c) <= 'z')
-#define Q_isdigit(c)    ((c) >= '0' && (c) <= '9')
-#define Q_isalpha(c)    (Q_isupper(c) || Q_islower(c))
-#define Q_isalnum(c)    (Q_isalpha(c) || Q_isdigit(c))
-#define Q_isprint(c)    ((c) >= 32 && (c) < 127)
-#define Q_isgraph(c)    ((c) > 32 && (c) < 127)
-#define Q_isspace(c)    (c == ' ' || c == '\f' || c == '\n' || \
-                         c == '\r' || c == '\t' || c == '\v')
 
 // case independent string compare of length n
 // compare strings up to length n or until the end of s1
@@ -283,7 +283,7 @@ int Q_strnicmp(const char *s1, const char *s2, size_t n)
 void Q_dprintf(char *msg, ...)
 {
 	va_list		argptr;
-	char		text[128];
+	char		text[256];
 
 	va_start(argptr, msg);
 	vsnprintf(text, sizeof(text), msg, argptr);
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
 {
 	int err = 0;
 
-	printf("Q2-Master 1.2 originally GloomMaster\n(c) 2002-2003 r1ch.net, modifications by QwazyWabbit 2007-2023\n");
+	printf("Q2-Master 1.2 originally GloomMaster(c) 2002-2003 r1ch.net, modifications by QwazyWabbit 2007-2023\n");
 	numservers = 0;
 
 #ifdef _WIN32
@@ -804,7 +804,7 @@ int ParseResponse(struct sockaddr_in *from, char *data, int dglen)
 	char *line = data;
 	int	status = TRUE;
 
-	if (Q_strnicmp(data, "query", 5) == 0 || Q_strnicmp(data, OOB_SEQ"getservers", 14) == 0)
+	if (Q_strnicmp(data, "query", 5) == 0 || Q_strnicmp(data, OOB_SEQ "getservers", 14) == 0)
 	{
 		Q_dprintf("[I] %s:%d : query (%d bytes)\n", inet_ntoa(from->sin_addr), htons(from->sin_port), dglen);
 		SendServerListToClient(from);

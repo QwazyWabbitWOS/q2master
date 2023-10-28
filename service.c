@@ -56,20 +56,6 @@ BOOL WINAPI ControlHandler(DWORD dwCtrlType);
 LPTSTR GetLastErrorText(LPTSTR lpszBuf, DWORD dwSize);
 VOID DoUpdateSvcDesc();
 
-void Usage(void)
-{
-	// this is just to be friendly 
-	printf("%s -install          to install the service\n", SZAPPNAME);
-	printf("%s -remove           to remove the service\n", SZAPPNAME);
-	printf("%s -debug <params>   to run as a console app for debugging\n", SZAPPNAME);
-	printf("%s -ip x.x.x.x       to bind to a unique ip address\n", SZAPPNAME);
-	printf("%s -wanip x.x.x.x    to specify the WAN ip address of this host\n", SZAPPNAME);
-	printf("%s -lanip x.x.x.x    to specify the LAN ip address for colocated servers (used with wanip)\n", SZAPPNAME);
-	printf("%s -port nnnnn       to bind to port address other than 27900\n", SZAPPNAME);
-	printf("\nStartServiceCtrlDispatcher being called.\n");
-	printf("This may take several seconds.  Please wait.\n");
-}
-
 // 
 //  FUNCTION: main 
 // 
@@ -123,6 +109,11 @@ int main(int argc, char **argv)
 			CmdDebugService(argc, argv);
 			printf("Port address was correctly initialized.\n");
 		}
+		else if (strcmp("help", argv[1] + 1) == 0)
+		{
+			Usage();
+			exit(0);
+		}
 		else
 		{
 			goto dispatch;
@@ -134,6 +125,9 @@ int main(int argc, char **argv)
 	// the service control manager may be starting the service 
 	// so we must call StartServiceCtrlDispatcher 
 dispatch:
+	printf("\nStartServiceCtrlDispatcher being called.\n");
+	printf("This may take several seconds.  Please wait.\n");
+
 	if (!StartServiceCtrlDispatcher(dispatchTable))
 		AddToMessageLog(TEXT("StartServiceCtrlDispatcher failed."));
 }
